@@ -23,6 +23,7 @@ const Profile = () => {
   });
 
   const [isEditingContact, setIsEditingContact] = useState(false);
+  const [editName, setEditName] = useState(profileData.name);
   const [editEmail, setEditEmail] = useState(profileData.email);
   const [editPhone, setEditPhone] = useState(profileData.phone);
   
@@ -40,6 +41,7 @@ const Profile = () => {
       // Save contact info
       setProfileData({
         ...profileData,
+        name: editName,
         email: editEmail,
         phone: editPhone,
       });
@@ -102,6 +104,15 @@ const Profile = () => {
           {isEditingContact ? (
             <div className="space-y-3">
               <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full px-3 py-2 bg-card border border-input rounded-md"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="text-sm text-muted-foreground">Email</label>
                 <input
                   type="email"
@@ -129,11 +140,15 @@ const Profile = () => {
           ) : (
             <div className="space-y-2">
               <div className="flex items-center">
-                <Mail size={16} className="mr-2 text-muted-foreground" />
+                <span className="text-muted-foreground min-w-[80px]">Name:</span>
+                <span>{profileData.name}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="text-muted-foreground min-w-[80px]">Email:</span>
                 <span>{profileData.email}</span>
               </div>
               <div className="flex items-center">
-                <Phone size={16} className="mr-2 text-muted-foreground" />
+                <span className="text-muted-foreground min-w-[80px]">Phone:</span>
                 <span>{profileData.phone}</span>
               </div>
             </div>
