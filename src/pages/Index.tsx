@@ -1,33 +1,41 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Clock, Dumbbell, Plus, History as HistoryIcon } from 'lucide-react';
+import { Award, Plus, History as HistoryIcon, Star, Trophy, Certificate } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
 import Header from '@/components/Header';
 import ProfileSection from '@/components/ProfileSection';
-import StatsCard from '@/components/StatsCard';
+import AchievementCard from '@/components/AchievementCard';
 import QuickActionButton from '@/components/QuickActionButton';
 import NavigationBar from '@/components/NavigationBar';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
   const navigate = useNavigate();
-
-  // Sample data
-  const profile = {
+  
+  // Get profile data from local storage
+  const [profileData] = useLocalStorage('profile', {
     name: "John Sharma",
     achievements: "Professional Fitness Trainer, 10+ Years Experience",
-    photoUrl: ""
-  };
+    photoUrl: "",
+    email: "john@dronacharyagym.com",
+    phone: "+91 9876543210",
+  });
 
-  const stats = [
-    { title: "Active Members", value: 120, icon: <Users size={24} /> },
-    { title: "Trainers", value: 8, icon: <Dumbbell size={24} /> },
-    { title: "Hours", value: "5AM - 10PM", icon: <Clock size={24} /> }
+  // Sample achievements data
+  const achievements = [
+    { title: "Certification", value: "ISSA Certified Trainer", icon: <Certificate size={24} /> },
+    { title: "Experience", value: "10+ Years", icon: <Star size={24} /> },
+    { title: "Competitions", value: "25+ Judged", icon: <Trophy size={24} /> }
   ];
 
   const handleSplashComplete = () => {
     setShowSplash(false);
+  };
+
+  const handleProfileUpdate = (data: { name: string; achievements: string; photoUrl?: string }) => {
+    // This is handled in the Profile page component
   };
 
   return (
@@ -39,9 +47,10 @@ const Index = () => {
         
         <main className="px-4 py-6">
           <ProfileSection
-            name={profile.name}
-            achievements={profile.achievements}
-            photoUrl={profile.photoUrl}
+            name={profileData.name}
+            achievements={profileData.achievements}
+            photoUrl={profileData.photoUrl}
+            onUpdate={handleProfileUpdate}
           />
           
           <div className="mt-8 grid grid-cols-2 gap-4">
@@ -60,14 +69,17 @@ const Index = () => {
           </div>
           
           <div className="mt-8">
-            <h2 className="mb-4 text-xl font-semibold animate-fade-in">Statistics</h2>
+            <h2 className="mb-4 text-xl font-semibold flex items-center animate-fade-in">
+              <Award size={20} className="mr-2 text-coral" />
+              Achievements
+            </h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {stats.map((stat, index) => (
-                <StatsCard
-                  key={stat.title}
-                  title={stat.title}
-                  value={stat.value}
-                  icon={stat.icon}
+              {achievements.map((achievement, index) => (
+                <AchievementCard
+                  key={achievement.title}
+                  title={achievement.title}
+                  value={achievement.value}
+                  icon={achievement.icon}
                   className={{ animationDelay: `${index * 0.1}s` } as any}
                 />
               ))}

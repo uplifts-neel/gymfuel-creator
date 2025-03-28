@@ -7,7 +7,7 @@ interface HeaderProps {
 
 const Header = ({ className }: HeaderProps) => {
   return (
-    <header className={cn("text-center py-4 bg-gradient-primary", className)}>
+    <header className={cn("text-center py-4 bg-gradient-primary shadow-md", className)}>
       <h1 className="text-2xl font-bold text-white drop-shadow-md animate-fade-in">
         DRONACHARYA THE GYM
       </h1>

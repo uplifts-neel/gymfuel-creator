@@ -1,21 +1,25 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Weight, Check, Share2 } from 'lucide-react';
+import { ArrowLeft, User, Weight, Check, Share2, ArrowRight, Search } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Header from '@/components/Header';
 import NavigationBar from '@/components/NavigationBar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 
-type Step = 'info' | 'meals' | 'review';
+type FormStep = 'admission' | 'details' | 'meals' | 'review';
 type Meal = { id: string; name: string; category: string };
 type MealTime = 'morning' | 'afternoon' | 'beforeGym' | 'afterGym' | 'evening' | 'night';
 
 const DietPlan = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState<Step>('info');
+  const { toast } = useToast();
+  
+  const [currentStep, setCurrentStep] = useState<FormStep>('admission');
   const [memberInfo, setMemberInfo] = useState({
     admissionNumber: '',
     fullName: '',
@@ -105,7 +109,24 @@ const DietPlan = () => {
   };
 
   const handleNextStep = () => {
-    if (currentStep === 'info') {
+    if (currentStep === 'admission') {
+      // Simulate admission number validation
+      setTimeout(() => {
+        if (memberInfo.admissionNumber.trim() !== '') {
+          setCurrentStep('details');
+          toast({
+            title: "Admission verified",
+            description: "Please complete member details",
+          });
+        } else {
+          toast({
+            title: "Verification failed",
+            description: "Please enter a valid admission number",
+            variant: "destructive",
+          });
+        }
+      }, 500);
+    } else if (currentStep === 'details') {
       setCurrentStep('meals');
     } else if (currentStep === 'meals') {
       setCurrentStep('review');
@@ -113,8 +134,10 @@ const DietPlan = () => {
   };
 
   const handlePrevStep = () => {
-    if (currentStep === 'meals') {
-      setCurrentStep('info');
+    if (currentStep === 'details') {
+      setCurrentStep('admission');
+    } else if (currentStep === 'meals') {
+      setCurrentStep('details');
     } else if (currentStep === 'review') {
       setCurrentStep('meals');
     }
@@ -135,82 +158,159 @@ const DietPlan = () => {
   };
 
   const handleGeneratePlan = () => {
-    // In a real app, this would generate the plan
+    toast({
+      title: "Diet plan created!",
+      description: "Plan has been saved to history",
+    });
     navigate('/history');
   };
+
+  // Progress indicator - how many steps completed out of total
+  const totalSteps = 4; // admission, details, meals, review
+  let currentStepNumber = 1;
+  
+  switch(currentStep) {
+    case 'admission': currentStepNumber = 1; break;
+    case 'details': currentStepNumber = 2; break;
+    case 'meals': currentStepNumber = 3; break;
+    case 'review': currentStepNumber = 4; break;
+  }
+  
+  const progressPercentage = (currentStepNumber / totalSteps) * 100;
 
   return (
     <div className="min-h-screen pb-16">
       <Header />
       
       <main className="px-4 py-6">
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/')}
-            className="mr-2"
-          >
-            <ArrowLeft size={20} />
-          </Button>
-          <h1 className="text-xl font-semibold">
-            {currentStep === 'info' && 'Member Information'}
-            {currentStep === 'meals' && 'Meal Planning'}
-            {currentStep === 'review' && 'Review Diet Plan'}
-          </h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/')}
+              className="mr-2"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <h1 className="text-xl font-semibold">
+              {currentStep === 'admission' && 'Member Verification'}
+              {currentStep === 'details' && 'Member Information'}
+              {currentStep === 'meals' && 'Meal Planning'}
+              {currentStep === 'review' && 'Review Diet Plan'}
+            </h1>
+          </div>
+          
+          <div className="text-sm font-medium text-muted-foreground">
+            Step {currentStepNumber} of {totalSteps}
+          </div>
         </div>
         
-        {/* Step 1: Member Information */}
-        {currentStep === 'info' && (
-          <div className="space-y-6 animate-fade-in">
-            <div className="space-y-2">
-              <Label htmlFor="admissionNumber">Admission Number</Label>
-              <Input
-                id="admissionNumber"
-                name="admissionNumber"
-                placeholder="Enter member's admission number"
-                value={memberInfo.admissionNumber}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                placeholder="Enter member's full name"
-                value={memberInfo.fullName}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="weight">Current Weight (kg)</Label>
-              <Input
-                id="weight"
-                name="weight"
-                type="number"
-                placeholder="Enter member's weight"
-                value={memberInfo.weight}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <Button 
-              onClick={handleNextStep}
-              className="w-full mt-4 bg-coral hover:bg-coral/90"
-              disabled={!memberInfo.admissionNumber || !memberInfo.fullName || !memberInfo.weight}
-            >
-              Next
-            </Button>
+        {/* Progress bar */}
+        <div className="w-full h-1 bg-muted mb-6 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-primary transition-all duration-300 ease-out"
+            style={{ width: `${progressPercentage}%` }}
+          />
+        </div>
+        
+        {/* Step 1: Admission Number Verification */}
+        {currentStep === 'admission' && (
+          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
+            <Card className="p-6">
+              <div className="text-center mb-6">
+                <Search size={40} className="mx-auto text-coral mb-4" />
+                <h2 className="text-lg font-medium">Member Verification</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Enter the admission number to start creating a diet plan
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <Label htmlFor="admissionNumber">Admission Number</Label>
+                <Input
+                  id="admissionNumber"
+                  name="admissionNumber"
+                  placeholder="Enter admission number"
+                  value={memberInfo.admissionNumber}
+                  onChange={handleInputChange}
+                  className="text-center text-lg"
+                />
+              </div>
+              
+              <Button 
+                onClick={handleNextStep}
+                className="w-full mt-6 bg-coral hover:bg-coral/90"
+                disabled={!memberInfo.admissionNumber}
+              >
+                Verify & Continue
+                <ArrowRight size={16} className="ml-2" />
+              </Button>
+            </Card>
           </div>
         )}
         
-        {/* Step 2: Meal Planning */}
+        {/* Step 2: Member Details */}
+        {currentStep === 'details' && (
+          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
+            <Card className="p-6">
+              <div className="text-center mb-6">
+                <User size={40} className="mx-auto text-coral mb-4" />
+                <h2 className="text-lg font-medium">Member Details</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Complete member information for the diet plan
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    placeholder="Enter member's full name"
+                    value={memberInfo.fullName}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="weight">Current Weight (kg)</Label>
+                  <Input
+                    id="weight"
+                    name="weight"
+                    type="number"
+                    placeholder="Enter member's weight"
+                    value={memberInfo.weight}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <Button 
+                  variant="outline" 
+                  onClick={handlePrevStep}
+                  className="flex-1"
+                >
+                  Back
+                </Button>
+                <Button 
+                  onClick={handleNextStep}
+                  className="flex-1 bg-coral hover:bg-coral/90"
+                  disabled={!memberInfo.fullName || !memberInfo.weight}
+                >
+                  Continue
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+        
+        {/* Step 3: Meal Planning */}
         {currentStep === 'meals' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="overflow-x-auto">
+            <ScrollArea className="w-full whitespace-nowrap pb-2">
               <div className="flex gap-2 pb-2">
                 {mealTimes.map((time) => (
                   <Button
@@ -223,7 +323,7 @@ const DietPlan = () => {
                   </Button>
                 ))}
               </div>
-            </div>
+            </ScrollArea>
             
             <div className="mt-4">
               <h3 className="text-lg font-medium mb-2">
@@ -255,7 +355,7 @@ const DietPlan = () => {
                 {mealCategories.map((category) => (
                   <div key={category.name} className="animate-slide-in">
                     <h4 className="text-md font-medium mb-2 text-coral">{category.name}</h4>
-                    <div className="overflow-x-auto">
+                    <ScrollArea className="w-full whitespace-nowrap pb-2">
                       <div className="flex gap-2 pb-2">
                         {category.items.map((meal) => (
                           <Button
@@ -268,7 +368,7 @@ const DietPlan = () => {
                           </Button>
                         ))}
                       </div>
-                    </div>
+                    </ScrollArea>
                   </div>
                 ))}
               </div>
@@ -292,7 +392,7 @@ const DietPlan = () => {
           </div>
         )}
         
-        {/* Step 3: Review */}
+        {/* Step 4: Review */}
         {currentStep === 'review' && (
           <div className="space-y-6 animate-fade-in">
             <Card className="p-4">
