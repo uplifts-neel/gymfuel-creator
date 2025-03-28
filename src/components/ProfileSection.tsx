@@ -133,7 +133,7 @@ const ProfileSection = ({
         </div>
       ) : (
         <>
-          <h2 className="mt-4 text-xl font-semibold animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <h2 className="mt-4 text-xl font-bold animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {name}
           </h2>
           
