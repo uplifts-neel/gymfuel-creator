@@ -16,7 +16,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []); // Empty dependency array to run once
 
   return (
     <div

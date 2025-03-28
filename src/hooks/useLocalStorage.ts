@@ -1,7 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
+  // Create a ref to track if this is the initial mount
+  const isFirstRender = useRef(true);
+  
   // State to store our value
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
@@ -33,8 +36,14 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     }
   };
 
-  // Update stored value if the key changes
+  // Update stored value if the key changes, but only after the initial mount
   useEffect(() => {
+    // Skip the effect on the first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
     try {
       const item = window.localStorage.getItem(key);
       setStoredValue(item ? JSON.parse(item) : initialValue);

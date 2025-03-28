@@ -14,7 +14,7 @@ const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
   const navigate = useNavigate();
   
-  // Get profile data from local storage
+  // Get profile data from local storage - use a stable reference
   const [profileData] = useLocalStorage('profile', {
     name: "John Sharma",
     achievements: "Professional Fitness Trainer, 10+ Years Experience",
@@ -23,12 +23,21 @@ const Index = () => {
     phone: "+91 9876543210",
   });
 
-  // Sample achievements data - replaced Certificate with Medal
+  // Sample achievements data - using Medal icon
   const achievements = [
     { title: "Certification", value: "ISSA Certified Trainer", icon: <Medal size={24} /> },
     { title: "Experience", value: "10+ Years", icon: <Star size={24} /> },
     { title: "Competitions", value: "25+ Judged", icon: <Trophy size={24} /> }
   ];
+
+  // Use useEffect to handle splash screen timer to avoid infinite rerenders
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500); // Match SplashScreen component timing
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
