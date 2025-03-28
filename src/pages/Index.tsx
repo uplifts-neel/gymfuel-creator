@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Plus, History as HistoryIcon, Star, Trophy, Certificate } from 'lucide-react';
+import { Award, Plus, History as HistoryIcon, Star, Trophy, Medal } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
 import Header from '@/components/Header';
 import ProfileSection from '@/components/ProfileSection';
@@ -23,9 +22,9 @@ const Index = () => {
     phone: "+91 9876543210",
   });
 
-  // Sample achievements data
+  // Sample achievements data - replaced Certificate with Medal
   const achievements = [
-    { title: "Certification", value: "ISSA Certified Trainer", icon: <Certificate size={24} /> },
+    { title: "Certification", value: "ISSA Certified Trainer", icon: <Medal size={24} /> },
     { title: "Experience", value: "10+ Years", icon: <Star size={24} /> },
     { title: "Competitions", value: "25+ Judged", icon: <Trophy size={24} /> }
   ];
