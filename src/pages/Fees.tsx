@@ -1,31 +1,17 @@
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Search, PlusCircle, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Search, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import NavigationBar from '@/components/NavigationBar';
 import Header from '@/components/Header';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface FeeRecord {
-  id: string;
-  member_id: string;
-  amount_paid: number;
-  payment_date: string;
-  due_date: string;
-  status: 'Paid' | 'Due';
-  member: {
-    name: string;
-    admission_number: string;
-    phone: string;
-  };
-}
+import FeeCard, { FeeRecord } from '@/components/fees/FeeCard';
+import { getPaidRecords, getDueRecords } from '@/utils/feeUtils';
 
 const Fees = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -91,21 +77,8 @@ const Fees = () => {
     }
   };
 
-  const getPaidRecords = () => {
-    return filteredRecords.filter((record) => record.status === 'Paid');
-  };
-
-  const getDueRecords = () => {
-    return filteredRecords.filter((record) => record.status === 'Due');
-  };
-
   const handleAddNewFee = () => {
     navigate('/new-fee');
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
   };
 
   return (
@@ -171,8 +144,8 @@ const Fees = () => {
           <TabsContent value="paid" className="space-y-4">
             {isLoading ? (
               <div className="text-center py-8">Loading...</div>
-            ) : getPaidRecords().length > 0 ? (
-              getPaidRecords().map((record) => (
+            ) : getPaidRecords(filteredRecords).length > 0 ? (
+              getPaidRecords(filteredRecords).map((record) => (
                 <FeeCard key={record.id} record={record} />
               ))
             ) : (
@@ -185,8 +158,8 @@ const Fees = () => {
           <TabsContent value="due" className="space-y-4">
             {isLoading ? (
               <div className="text-center py-8">Loading...</div>
-            ) : getDueRecords().length > 0 ? (
-              getDueRecords().map((record) => (
+            ) : getDueRecords(filteredRecords).length > 0 ? (
+              getDueRecords(filteredRecords).map((record) => (
                 <FeeCard key={record.id} record={record} />
               ))
             ) : (
@@ -200,76 +173,6 @@ const Fees = () => {
 
       <NavigationBar />
     </div>
-  );
-};
-
-interface FeeCardProps {
-  record: FeeRecord;
-}
-
-const FeeCard = ({ record }: FeeCardProps) => {
-  const isPastDue = new Date(record.due_date) < new Date() && record.status === 'Due';
-  
-  return (
-    <Card className="animate-fade-in">
-      <CardContent className="p-4">
-        <div className="flex flex-col space-y-2">
-          <div className="flex justify-between items-start">
-            <div>
-              <h3 className="font-semibold text-lg">{record.member.name}</h3>
-              <p className="text-sm text-muted-foreground">#{record.member.admission_number}</p>
-            </div>
-            <Badge 
-              className={`${
-                record.status === 'Paid' 
-                  ? 'bg-green-500 hover:bg-green-600' 
-                  : isPastDue 
-                    ? 'bg-red-500 hover:bg-red-600' 
-                    : 'bg-amber-500 hover:bg-amber-600'
-              }`}
-            >
-              {record.status === 'Paid' ? (
-                <span className="flex items-center">
-                  <CheckCircle2 size={14} className="mr-1" />
-                  Paid
-                </span>
-              ) : isPastDue ? (
-                <span className="flex items-center">
-                  <AlertCircle size={14} className="mr-1" />
-                  Overdue
-                </span>
-              ) : (
-                <span className="flex items-center">
-                  <Calendar size={14} className="mr-1" />
-                  Due
-                </span>
-              )}
-            </Badge>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-muted-foreground">Amount</p>
-              <p className="font-medium">₹{record.amount_paid}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Payment Date</p>
-              <p className="font-medium">{new Date(record.payment_date).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Due Date</p>
-              <p className={`font-medium ${isPastDue ? 'text-red-500' : ''}`}>
-                {new Date(record.due_date).toLocaleDateString()}
-              </p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Contact</p>
-              <p className="font-medium">{record.member.phone}</p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 };
 
