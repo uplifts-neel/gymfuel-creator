@@ -24,6 +24,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   updateUserProfile: (updates: Partial<User>) => void;
+  register: (userData: { username: string, password: string, name: string, role: UserRole }) => Promise<boolean>;
 }
 
 // Create context with default values
@@ -34,15 +35,8 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => false,
   logout: () => {},
   updateUserProfile: () => {},
+  register: async () => false,
 });
-
-// Initial owner account
-const INITIAL_OWNER: User = {
-  id: 'owner-1',
-  username: 'the gym',
-  role: 'owner',
-  name: 'Dronacharya Gym Owner'
-};
 
 // Hook to use auth context
 export const useAuth = () => useContext(AuthContext);
@@ -50,16 +44,37 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useLocalStorage<User | null>('gym-app-user', null);
   const [isLoading, setIsLoading] = useState(true);
-  const [credentials] = useLocalStorage<Record<string, string>>('gym-app-credentials', {
-    'the gym': 'surender9818', // Default owner credentials
-  });
   const { toast } = useToast();
   const navigate = useNavigate();
 
   // Check for existing user on initial load
   useEffect(() => {
-    // Set loading to false after checking for user
-    setIsLoading(false);
+    const checkUser = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, username, role, name')
+          .single();
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error fetching user:', error);
+        } else if (data) {
+          setUser({
+            id: data.id,
+            username: data.username,
+            role: data.role as UserRole,
+            name: data.name
+          });
+        }
+      } catch (error) {
+        console.error('Error in auth check:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkUser();
   }, []);
 
   // Login function
@@ -68,21 +83,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       
       // Check if username exists and password matches
-      if (credentials[username] && credentials[username] === password) {
-        // For the owner account
-        if (username === 'the gym') {
-          setUser(INITIAL_OWNER);
-          toast({
-            title: "Login successful",
-            description: "Welcome back, Gym Owner!",
-          });
-          return true;
-        } 
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, role, name, password')
+        .eq('username', username)
+        .single();
+      
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: "Invalid username or password.",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (data && data.password === password) {
+        const userData: User = {
+          id: data.id,
+          username: data.username,
+          role: data.role as UserRole,
+          name: data.name
+        };
         
-        // For other accounts (not implemented yet)
+        setUser(userData);
+        
         toast({
           title: "Login successful",
-          description: "Welcome back!",
+          description: `Welcome back, ${data.name}!`,
         });
         return true;
       }
@@ -97,6 +125,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login error:', error);
       toast({
         title: "Login error",
+        description: "An unexpected error occurred.",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Register function for trainers
+  const register = async (userData: { 
+    username: string, 
+    password: string, 
+    name: string, 
+    role: UserRole 
+  }): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      
+      // Check if username already exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', userData.username)
+        .single();
+      
+      if (existingUser) {
+        toast({
+          title: "Registration failed",
+          description: "Username already exists.",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      // Insert new user
+      const { data, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            username: userData.username,
+            password: userData.password,
+            name: userData.name,
+            role: userData.role
+          }
+        ])
+        .select('id, username, role, name')
+        .single();
+      
+      if (error) {
+        console.error('Registration error:', error);
+        toast({
+          title: "Registration failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      toast({
+        title: "Registration successful",
+        description: `${userData.name} has been registered as a ${userData.role}.`,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Registration error:', error);
+      toast({
+        title: "Registration error",
         description: "An unexpected error occurred.",
         variant: "destructive"
       });
@@ -122,10 +219,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
       
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      });
+      // Update user in database
+      supabase
+        .from('users')
+        .update({
+          username: updatedUser.username,
+          name: updatedUser.name,
+          role: updatedUser.role
+        })
+        .eq('id', user.id)
+        .then(({ error }) => {
+          if (error) {
+            console.error('Error updating user:', error);
+            toast({
+              title: "Update failed",
+              description: "Failed to update profile.",
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Profile updated",
+              description: "Your profile has been successfully updated.",
+            });
+          }
+        });
     }
   };
 
@@ -137,7 +254,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login, 
         logout,
-        updateUserProfile
+        updateUserProfile,
+        register
       }}
     >
       {children}

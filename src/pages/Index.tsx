@@ -1,28 +1,33 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, Plus, History as HistoryIcon, Star, Trophy, Medal } from 'lucide-react';
+import { Award, Plus, History as HistoryIcon, Star, Trophy, Medal, AlertCircle, CreditCard } from 'lucide-react';
 import SplashScreen from '@/components/SplashScreen';
 import Header from '@/components/Header';
 import ProfileSection from '@/components/ProfileSection';
 import AchievementCard from '@/components/AchievementCard';
 import QuickActionButton from '@/components/QuickActionButton';
 import NavigationBar from '@/components/NavigationBar';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+interface FeeDue {
+  id: string;
+  due_date: string;
+  member: {
+    name: string;
+    admission_number: string;
+  };
+}
 
 const Index = () => {
   const [showSplash, setShowSplash] = useState(true);
+  const [dueFees, setDueFees] = useState<FeeDue[]>([]);
   const navigate = useNavigate();
+  const { user } = useAuth();
   
-  // Get profile data from local storage - use a stable reference
-  const [profileData] = useLocalStorage('profile', {
-    name: "John Sharma",
-    achievements: "Professional Fitness Trainer, 10+ Years Experience",
-    photoUrl: "",
-    email: "john@dronacharyagym.com",
-    phone: "+91 9876543210",
-  });
-
   // Sample achievements data - using Medal icon
   const achievements = [
     { title: "Certification", value: "ISSA Certified Trainer", icon: <Medal size={24} /> },
@@ -30,21 +35,47 @@ const Index = () => {
     { title: "Competitions", value: "25+ Judged", icon: <Trophy size={24} /> }
   ];
 
-  // Use useEffect to handle splash screen timer to avoid infinite rerenders
+  // Use useEffect to handle splash screen timer
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2500); // Match SplashScreen component timing
+    }, 2500);
     
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSplashComplete = () => {
-    setShowSplash(false);
+  // Fetch due fees
+  useEffect(() => {
+    if (user?.role === 'owner') {
+      fetchDueFees();
+    }
+  }, [user]);
+
+  const fetchDueFees = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data, error } = await supabase
+        .from('fees')
+        .select(`
+          id,
+          due_date,
+          member:members(name, admission_number)
+        `)
+        .eq('status', 'Due')
+        .lte('due_date', today)
+        .order('due_date', { ascending: false })
+        .limit(3);
+      
+      if (error) throw error;
+      setDueFees(data || []);
+    } catch (error) {
+      console.error('Error fetching due fees:', error);
+    }
   };
 
-  const handleProfileUpdate = (data: { name: string; achievements: string; photoUrl?: string }) => {
-    // This is handled in the Profile page component
+  const handleSplashComplete = () => {
+    setShowSplash(false);
   };
 
   return (
@@ -55,26 +86,64 @@ const Index = () => {
         <Header />
         
         <main className="px-4 py-6">
-          <ProfileSection
-            name={profileData.name}
-            achievements={profileData.achievements}
-            photoUrl={profileData.photoUrl}
-            onUpdate={handleProfileUpdate}
-          />
+          {user && (
+            <ProfileSection
+              name={user.name}
+              achievements={`${user.role.charAt(0).toUpperCase() + user.role.slice(1)}`}
+              photoUrl=""
+              onUpdate={() => {}}
+            />
+          )}
+          
+          {dueFees.length > 0 && user?.role === 'owner' && (
+            <Card className="mt-6 border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900 animate-fade-in">
+              <CardContent className="p-4">
+                <div className="flex items-start">
+                  <AlertCircle className="text-red-500 mr-3 mt-1 flex-shrink-0" size={20} />
+                  <div className="flex-grow">
+                    <h3 className="font-semibold text-red-700 dark:text-red-400">Payment Overdue</h3>
+                    <ul className="mt-2 space-y-1">
+                      {dueFees.map(fee => (
+                        <li key={fee.id} className="text-sm">
+                          {fee.member.name} ({fee.member.admission_number}) - Due: {new Date(fee.due_date).toLocaleDateString()}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button 
+                      variant="link" 
+                      className="p-0 mt-2 text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 h-auto font-semibold"
+                      onClick={() => navigate('/fees')}
+                    >
+                      View All Overdue Payments
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <div className="mt-8 grid grid-cols-2 gap-4">
             <QuickActionButton 
-              label="New Plan" 
+              label="Diet Plan" 
               icon={<Plus size={24} />} 
               onClick={() => navigate('/diet-plan')}
               variant="primary"
             />
-            <QuickActionButton 
-              label="History" 
-              icon={<HistoryIcon size={24} />} 
-              onClick={() => navigate('/history')}
-              variant="secondary"
-            />
+            {user?.role === 'owner' ? (
+              <QuickActionButton 
+                label="Fees" 
+                icon={<CreditCard size={24} />} 
+                onClick={() => navigate('/fees')}
+                variant="secondary"
+              />
+            ) : (
+              <QuickActionButton 
+                label="History" 
+                icon={<HistoryIcon size={24} />} 
+                onClick={() => navigate('/history')}
+                variant="secondary"
+              />
+            )}
           </div>
           
           <div className="mt-8">

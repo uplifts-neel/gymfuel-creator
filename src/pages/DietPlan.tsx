@@ -1,464 +1,150 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Weight, Check, Share2, ArrowRight, Search } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import Header from '@/components/Header';
-import NavigationBar from '@/components/NavigationBar';
+import { ArrowLeft, Search, UserRound, SearchIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import NavigationBar from '@/components/NavigationBar';
+import Header from '@/components/Header';
 
-type FormStep = 'admission' | 'details' | 'meals' | 'review';
-type Meal = { id: string; name: string; category: string };
-type MealTime = 'morning' | 'afternoon' | 'beforeGym' | 'afterGym' | 'evening' | 'night';
+interface Member {
+  id: string;
+  name: string;
+  admission_number: string;
+  phone: string;
+}
 
 const DietPlan = () => {
-  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [members, setMembers] = useState<Member[]>([]);
+  const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  
-  const [currentStep, setCurrentStep] = useState<FormStep>('admission');
-  const [memberInfo, setMemberInfo] = useState({
-    admissionNumber: '',
-    fullName: '',
-    weight: '',
-  });
-  
-  const [selectedMeals, setSelectedMeals] = useState<Record<MealTime, Meal[]>>({
-    morning: [],
-    afternoon: [],
-    beforeGym: [],
-    afterGym: [],
-    evening: [],
-    night: [],
-  });
+  const navigate = useNavigate();
 
-  const [currentMealTime, setCurrentMealTime] = useState<MealTime>('morning');
-  
-  const mealTimes: { id: MealTime; label: string }[] = [
-    { id: 'morning', label: 'Morning' },
-    { id: 'afternoon', label: 'Afternoon' },
-    { id: 'beforeGym', label: 'Before Gym' },
-    { id: 'afterGym', label: 'After Gym' },
-    { id: 'evening', label: 'Evening' },
-    { id: 'night', label: 'Night' },
-  ];
+  useEffect(() => {
+    fetchMembers();
+  }, []);
 
-  // Sample meal categories and options
-  const mealCategories = [
-    { 
-      name: 'Proteins', 
-      items: [
-        { id: 'eggs', name: 'Eggs', category: 'Proteins' },
-        { id: 'chicken', name: 'Chicken', category: 'Proteins' },
-        { id: 'whey', name: 'Whey Protein', category: 'Proteins' },
-        { id: 'fish', name: 'Fish', category: 'Proteins' },
-      ]
-    },
-    { 
-      name: 'Carbs', 
-      items: [
-        { id: 'bread', name: 'Bread', category: 'Carbs' },
-        { id: 'chapati', name: 'Chapati', category: 'Carbs' },
-        { id: 'rice', name: 'Rice', category: 'Carbs' },
-        { id: 'sweetPotato', name: 'Sweet Potato', category: 'Carbs' },
-      ]
-    },
-    { 
-      name: 'Dairy', 
-      items: [
-        { id: 'milk', name: 'Milk', category: 'Dairy' },
-        { id: 'curd', name: 'Curd', category: 'Dairy' },
-        { id: 'greekYogurt', name: 'Greek Yogurt', category: 'Dairy' },
-      ]
-    },
-    { 
-      name: 'Fruits', 
-      items: [
-        { id: 'apple', name: 'Apple', category: 'Fruits' },
-        { id: 'banana', name: 'Banana', category: 'Fruits' },
-        { id: 'mixedFruits', name: 'Mixed Fruits', category: 'Fruits' },
-      ]
-    },
-    { 
-      name: 'Supplements', 
-      items: [
-        { id: 'preWorkout', name: 'Pre-Workout', category: 'Supplements' },
-        { id: 'eaaBcaa', name: 'EAA & BCAA', category: 'Supplements' },
-      ]
-    },
-    { 
-      name: 'Others', 
-      items: [
-        { id: 'peanutButter', name: 'Peanut Butter', category: 'Others' },
-        { id: 'almonds', name: 'Almonds', category: 'Others' },
-        { id: 'soyaBean', name: 'Soya Bean', category: 'Others' },
-        { id: 'salad', name: 'Salad', category: 'Others' },
-      ]
-    },
-  ];
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredMembers(members);
+    } else {
+      const query = searchQuery.toLowerCase();
+      const filtered = members.filter(
+        (member) =>
+          member.name.toLowerCase().includes(query) ||
+          member.admission_number.includes(query) ||
+          member.phone.includes(query)
+      );
+      setFilteredMembers(filtered);
+    }
+  }, [searchQuery, members]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setMemberInfo((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const fetchMembers = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('members')
+        .select('id, name, admission_number, phone')
+        .order('created_at', { ascending: false });
 
-  const handleNextStep = () => {
-    if (currentStep === 'admission') {
-      // Simulate admission number validation
-      setTimeout(() => {
-        if (memberInfo.admissionNumber.trim() !== '') {
-          setCurrentStep('details');
-          toast({
-            title: "Admission verified",
-            description: "Please complete member details",
-          });
-        } else {
-          toast({
-            title: "Verification failed",
-            description: "Please enter a valid admission number",
-            variant: "destructive",
-          });
-        }
-      }, 500);
-    } else if (currentStep === 'details') {
-      setCurrentStep('meals');
-    } else if (currentStep === 'meals') {
-      setCurrentStep('review');
+      if (error) {
+        console.error('Error fetching members:', error);
+        throw error;
+      }
+
+      setMembers(data || []);
+      setFilteredMembers(data || []);
+    } catch (error) {
+      console.error('Error in fetchMembers:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load members',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handlePrevStep = () => {
-    if (currentStep === 'details') {
-      setCurrentStep('admission');
-    } else if (currentStep === 'meals') {
-      setCurrentStep('details');
-    } else if (currentStep === 'review') {
-      setCurrentStep('meals');
-    }
+  const handleCreateDietPlan = (memberId: string) => {
+    navigate(`/create-diet-plan/${memberId}`);
   };
-
-  const handleMealSelect = (meal: Meal) => {
-    setSelectedMeals((prev) => ({
-      ...prev,
-      [currentMealTime]: [...prev[currentMealTime], meal],
-    }));
-  };
-
-  const handleRemoveMeal = (mealTime: MealTime, mealId: string) => {
-    setSelectedMeals((prev) => ({
-      ...prev,
-      [mealTime]: prev[mealTime].filter((meal) => meal.id !== mealId),
-    }));
-  };
-
-  const handleGeneratePlan = () => {
-    toast({
-      title: "Diet plan created!",
-      description: "Plan has been saved to history",
-    });
-    navigate('/history');
-  };
-
-  // Progress indicator - how many steps completed out of total
-  const totalSteps = 4; // admission, details, meals, review
-  let currentStepNumber = 1;
-  
-  switch(currentStep) {
-    case 'admission': currentStepNumber = 1; break;
-    case 'details': currentStepNumber = 2; break;
-    case 'meals': currentStepNumber = 3; break;
-    case 'review': currentStepNumber = 4; break;
-  }
-  
-  const progressPercentage = (currentStepNumber / totalSteps) * 100;
 
   return (
     <div className="min-h-screen pb-16">
       <Header />
-      
+
       <main className="px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/')}
-              className="mr-2"
-            >
-              <ArrowLeft size={20} />
-            </Button>
-            <h1 className="text-xl font-semibold">
-              {currentStep === 'admission' && 'Member Verification'}
-              {currentStep === 'details' && 'Member Information'}
-              {currentStep === 'meals' && 'Meal Planning'}
-              {currentStep === 'review' && 'Review Diet Plan'}
-            </h1>
-          </div>
-          
-          <div className="text-sm font-medium text-muted-foreground">
-            Step {currentStepNumber} of {totalSteps}
-          </div>
+        <div className="flex items-center mb-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="mr-2"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h1 className="text-xl font-semibold">Create Diet Plan</h1>
         </div>
-        
-        {/* Progress bar */}
-        <div className="w-full h-1 bg-muted mb-6 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-primary transition-all duration-300 ease-out"
-            style={{ width: `${progressPercentage}%` }}
+
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="Search by name, admission number or phone"
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        
-        {/* Step 1: Admission Number Verification */}
-        {currentStep === 'admission' && (
-          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
-            <Card className="p-6">
-              <div className="text-center mb-6">
-                <Search size={40} className="mx-auto text-coral mb-4" />
-                <h2 className="text-lg font-medium">Member Verification</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Enter the admission number to start creating a diet plan
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <Label htmlFor="admissionNumber">Admission Number</Label>
-                <Input
-                  id="admissionNumber"
-                  name="admissionNumber"
-                  placeholder="Enter admission number"
-                  value={memberInfo.admissionNumber}
-                  onChange={handleInputChange}
-                  className="text-center text-lg"
-                />
-              </div>
-              
-              <Button 
-                onClick={handleNextStep}
-                className="w-full mt-6 bg-coral hover:bg-coral/90"
-                disabled={!memberInfo.admissionNumber}
+
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : filteredMembers.length > 0 ? (
+            filteredMembers.map((member) => (
+              <Card 
+                key={member.id}
+                className="p-4 hover:bg-muted/20 transition-colors cursor-pointer animate-fade-in"
+                onClick={() => handleCreateDietPlan(member.id)}
               >
-                Verify & Continue
-                <ArrowRight size={16} className="ml-2" />
-              </Button>
-            </Card>
-          </div>
-        )}
-        
-        {/* Step 2: Member Details */}
-        {currentStep === 'details' && (
-          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
-            <Card className="p-6">
-              <div className="text-center mb-6">
-                <User size={40} className="mx-auto text-coral mb-4" />
-                <h2 className="text-lg font-medium">Member Details</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Complete member information for the diet plan
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    name="fullName"
-                    placeholder="Enter member's full name"
-                    value={memberInfo.fullName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="weight">Current Weight (kg)</Label>
-                  <Input
-                    id="weight"
-                    name="weight"
-                    type="number"
-                    placeholder="Enter member's weight"
-                    value={memberInfo.weight}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-3 mt-6">
-                <Button 
-                  variant="outline" 
-                  onClick={handlePrevStep}
-                  className="flex-1"
-                >
-                  Back
-                </Button>
-                <Button 
-                  onClick={handleNextStep}
-                  className="flex-1 bg-coral hover:bg-coral/90"
-                  disabled={!memberInfo.fullName || !memberInfo.weight}
-                >
-                  Continue
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
-        
-        {/* Step 3: Meal Planning */}
-        {currentStep === 'meals' && (
-          <div className="space-y-6 animate-fade-in">
-            <ScrollArea className="w-full whitespace-nowrap pb-2">
-              <div className="flex gap-2 pb-2">
-                {mealTimes.map((time) => (
-                  <Button
-                    key={time.id}
-                    variant={currentMealTime === time.id ? "default" : "outline"}
-                    onClick={() => setCurrentMealTime(time.id)}
-                    className={currentMealTime === time.id ? "bg-coral" : ""}
-                  >
-                    {time.label}
-                  </Button>
-                ))}
-              </div>
-            </ScrollArea>
-            
-            <div className="mt-4">
-              <h3 className="text-lg font-medium mb-2">
-                Selected for {mealTimes.find(t => t.id === currentMealTime)?.label}:
-              </h3>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                {selectedMeals[currentMealTime].length > 0 ? (
-                  selectedMeals[currentMealTime].map((meal) => (
-                    <div 
-                      key={meal.id} 
-                      className="flex items-center gap-1 px-3 py-1 bg-turquoise text-white rounded-full text-sm animate-scale-in"
-                    >
-                      {meal.name}
-                      <button 
-                        onClick={() => handleRemoveMeal(currentMealTime, meal.id)}
-                        className="ml-1 text-white/80 hover:text-white"
-                      >
-                        ×
-                      </button>
+                <CardContent className="p-0 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      <UserRound size={20} className="text-coral" />
                     </div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground text-sm">No meals selected</p>
-                )}
-              </div>
-              
-              <div className="space-y-6">
-                {mealCategories.map((category) => (
-                  <div key={category.name} className="animate-slide-in">
-                    <h4 className="text-md font-medium mb-2 text-coral">{category.name}</h4>
-                    <ScrollArea className="w-full whitespace-nowrap pb-2">
-                      <div className="flex gap-2 pb-2">
-                        {category.items.map((meal) => (
-                          <Button
-                            key={meal.id}
-                            variant="outline"
-                            onClick={() => handleMealSelect(meal)}
-                            className="whitespace-nowrap hover:bg-turquoise hover:text-white transition-colors"
-                          >
-                            {meal.name}
-                          </Button>
-                        ))}
+                    <div>
+                      <h3 className="font-medium">{member.name}</h3>
+                      <div className="flex text-sm text-muted-foreground">
+                        <span>#{member.admission_number}</span>
+                        <span className="mx-1">•</span>
+                        <span>{member.phone}</span>
                       </div>
-                    </ScrollArea>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex gap-2 mt-6">
+                  
+                  <Button variant="ghost" size="sm">
+                    Select
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <div className="text-center py-10">
+              <p className="text-muted-foreground mb-4">No members found</p>
               <Button 
-                variant="outline" 
-                onClick={handlePrevStep}
-                className="flex-1"
+                onClick={() => navigate('/new-member')}
+                className="bg-coral hover:bg-coral/90"
               >
-                Back
-              </Button>
-              <Button 
-                onClick={handleNextStep}
-                className="flex-1 bg-coral hover:bg-coral/90"
-              >
-                Review Plan
+                Register New Member
               </Button>
             </div>
-          </div>
-        )}
-        
-        {/* Step 4: Review */}
-        {currentStep === 'review' && (
-          <div className="space-y-6 animate-fade-in">
-            <Card className="p-4">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                  <User size={24} className="text-coral" />
-                </div>
-                <div>
-                  <h3 className="font-medium">{memberInfo.fullName}</h3>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <span className="mr-3">#{memberInfo.admissionNumber}</span>
-                    <Weight size={14} className="mr-1" />
-                    <span>{memberInfo.weight} kg</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {mealTimes.map((time) => (
-                  <div key={time.id} className="border-t pt-3">
-                    <h4 className="font-medium text-coral mb-2">{time.label}</h4>
-                    {selectedMeals[time.id].length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {selectedMeals[time.id].map((meal) => (
-                          <div 
-                            key={meal.id} 
-                            className="flex items-center gap-1 px-3 py-1 bg-card border border-border rounded-full text-sm"
-                          >
-                            {meal.name}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">No meals selected</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={handlePrevStep}
-                className="flex-1"
-              >
-                Back
-              </Button>
-              <Button 
-                onClick={handleGeneratePlan}
-                className="flex-1 bg-turquoise hover:bg-turquoise/90 animate-pulse-glow"
-              >
-                <Check size={16} className="mr-2" />
-                Generate Plan
-              </Button>
-            </div>
-            
-            <Button 
-              variant="secondary"
-              className="w-full bg-coral/10 hover:bg-coral/20 text-coral"
-            >
-              <Share2 size={16} className="mr-2" />
-              Share Plan
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </main>
 
       <NavigationBar />

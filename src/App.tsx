@@ -8,9 +8,14 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Profile from "./pages/Profile";
 import DietPlan from "./pages/DietPlan";
+import CreateDietPlan from "./pages/CreateDietPlan";
 import History from "./pages/History";
+import Settings from "./pages/Settings";
+import Fees from "./pages/Fees";
+import NewFee from "./pages/NewFee";
+import MemberRegistration from "./components/MemberRegistration";
+import TrainerRegistration from "./components/TrainerRegistration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,9 +32,14 @@ const App = () => (
             
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Index />} />
-              <Route path="/profile" element={<Profile />} />
               <Route path="/diet-plan" element={<DietPlan />} />
+              <Route path="/create-diet-plan/:memberId" element={<CreateDietPlan />} />
               <Route path="/history" element={<History />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/fees" element={<Fees />} />
+              <Route path="/new-fee" element={<NewFee />} />
+              <Route path="/new-member" element={<MemberRegistration />} />
+              <Route path="/register-trainer" element={<TrainerRegistration />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />
