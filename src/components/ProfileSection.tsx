@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileSectionProps {
   name: string;
@@ -28,6 +29,7 @@ const ProfileSection = ({
   const [editAchievements, setEditAchievements] = useState(achievements);
   const [editPhotoUrl, setEditPhotoUrl] = useState(photoUrl || '');
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleEditToggle = () => {
     if (isEditing) {
@@ -61,7 +63,9 @@ const ProfileSection = ({
     }
   };
 
-  const nameInitial = name.charAt(0).toUpperCase();
+  // Use authenticated user's name if available and not in edit mode
+  const displayName = user?.name || name;
+  const nameInitial = displayName.charAt(0).toUpperCase();
 
   return (
     <div className={cn("text-center py-6", className)}>
@@ -81,7 +85,7 @@ const ProfileSection = ({
           {photoUrl || editPhotoUrl ? (
             <AvatarImage 
               src={isEditing ? editPhotoUrl : photoUrl} 
-              alt={name} 
+              alt={displayName} 
               className="h-full w-full object-cover"
             />
           ) : (
@@ -134,7 +138,7 @@ const ProfileSection = ({
       ) : (
         <>
           <h2 className="mt-4 text-xl font-bold animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            {name}
+            {displayName}
           </h2>
           
           <p className="mt-2 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.2s' }}>
