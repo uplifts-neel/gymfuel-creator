@@ -38,7 +38,6 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
   // Update stored value if the key changes, but only after the initial mount
   useEffect(() => {
-    // Skip the effect on the first render
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
@@ -46,10 +45,12 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
     
     try {
       const item = window.localStorage.getItem(key);
-      setStoredValue(item ? JSON.parse(item) : initialValue);
+      const parsedItem = item ? JSON.parse(item) : initialValue;
+      if (JSON.stringify(parsedItem) !== JSON.stringify(storedValue)) {
+        setStoredValue(parsedItem);
+      }
     } catch (error) {
       console.log(error);
-      setStoredValue(initialValue);
     }
   }, [key, initialValue]);
 

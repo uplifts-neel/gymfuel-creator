@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Define user roles
 export type UserRole = 'owner' | 'trainer' | 'member';
@@ -49,7 +50,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useLocalStorage<User | null>('gym-app-user', null);
   const [isLoading, setIsLoading] = useState(true);
-  const [credentials, setCredentials] = useLocalStorage<Record<string, string>>('gym-app-credentials', {
+  const [credentials] = useLocalStorage<Record<string, string>>('gym-app-credentials', {
     'the gym': 'surender9818', // Default owner credentials
   });
   const { toast } = useToast();
@@ -57,20 +58,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for existing user on initial load
   useEffect(() => {
-    // Initialize owner account if not present
-    const initializeOwnerAccount = async () => {
-      // If no owner account exists in credentials, create it
-      if (!credentials['the gym']) {
-        setCredentials({
-          ...credentials,
-          'the gym': 'surender9818'
-        });
-      }
-      
-      setIsLoading(false);
-    };
-
-    initializeOwnerAccount();
+    // Set loading to false after checking for user
+    setIsLoading(false);
   }, []);
 
   // Login function
@@ -132,16 +121,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (user) {
       const updatedUser = { ...user, ...updates };
       setUser(updatedUser);
-      
-      // If username is updated, update credentials
-      if (updates.username && user.username !== updates.username) {
-        const newCredentials = { ...credentials };
-        // Copy the password to the new username
-        newCredentials[updates.username] = credentials[user.username];
-        // Delete the old username entry
-        delete newCredentials[user.username];
-        setCredentials(newCredentials);
-      }
       
       toast({
         title: "Profile updated",
