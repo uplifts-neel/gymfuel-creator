@@ -203,23 +203,6 @@ const Fees = () => {
   );
 };
 
-const getPaidRecords = () => {
-  return filteredRecords.filter((record) => record.status === 'Paid');
-};
-
-const getDueRecords = () => {
-  return filteredRecords.filter((record) => record.status === 'Due');
-};
-
-const handleAddNewFee = () => {
-  navigate('/new-fee');
-};
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-};
-
 interface FeeCardProps {
   record: FeeRecord;
 }
