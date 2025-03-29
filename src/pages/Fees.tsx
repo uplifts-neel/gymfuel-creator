@@ -75,8 +75,10 @@ const Fees = () => {
         throw error;
       }
 
-      setFeeRecords(data || []);
-      setFilteredRecords(data || []);
+      // Type assertion to ensure the data matches our FeeRecord type
+      const typedData = (data || []) as FeeRecord[];
+      setFeeRecords(typedData);
+      setFilteredRecords(typedData);
     } catch (error) {
       console.error('Error in fetchFeeRecords:', error);
       toast({
@@ -199,6 +201,23 @@ const Fees = () => {
       <NavigationBar />
     </div>
   );
+};
+
+const getPaidRecords = () => {
+  return filteredRecords.filter((record) => record.status === 'Paid');
+};
+
+const getDueRecords = () => {
+  return filteredRecords.filter((record) => record.status === 'Due');
+};
+
+const handleAddNewFee = () => {
+  navigate('/new-fee');
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
 };
 
 interface FeeCardProps {
