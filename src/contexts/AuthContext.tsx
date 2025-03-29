@@ -52,23 +52,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkUser = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, username, role, name')
-          .single();
         
-        if (error && error.code !== 'PGRST116') {
-          console.error('Error fetching user:', error);
-        } else if (data) {
-          setUser({
-            id: data.id,
-            username: data.username,
-            role: data.role as UserRole,
-            name: data.name
-          });
+        // Only proceed if we have a user in local storage to validate
+        if (user?.id) {
+          // Use a simplified query to avoid RLS recursion issues
+          const { data, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('id', user.id)
+            .single();
+          
+          if (error || !data) {
+            console.log('User validation failed, logging out');
+            setUser(null);
+          }
         }
       } catch (error) {
         console.error('Error in auth check:', error);
+        // Fail safe by clearing user data
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -87,14 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('users')
         .select('id, username, role, name, password')
         .eq('username', username)
-        .single();
+        .maybeSingle();
       
       if (error) {
-        toast({
-          title: "Login failed",
-          description: "Invalid username or password.",
-          variant: "destructive"
-        });
+        console.error('Login query error:', error);
         return false;
       }
       
@@ -107,27 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         
         setUser(userData);
-        
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${data.name}!`,
-        });
         return true;
       }
       
-      toast({
-        title: "Login failed",
-        description: "Invalid username or password.",
-        variant: "destructive"
-      });
       return false;
     } catch (error) {
       console.error('Login error:', error);
-      toast({
-        title: "Login error",
-        description: "An unexpected error occurred.",
-        variant: "destructive"
-      });
       return false;
     } finally {
       setIsLoading(false);
@@ -145,11 +128,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(true);
       
       // Check if username already exists
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
         .eq('username', userData.username)
-        .single();
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Username check error:', checkError);
+        return false;
+      }
       
       if (existingUser) {
         toast({
@@ -176,11 +164,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) {
         console.error('Registration error:', error);
-        toast({
-          title: "Registration failed",
-          description: error.message,
-          variant: "destructive"
-        });
         return false;
       }
       
@@ -192,11 +175,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } catch (error) {
       console.error('Registration error:', error);
-      toast({
-        title: "Registration error",
-        description: "An unexpected error occurred.",
-        variant: "destructive"
-      });
       return false;
     } finally {
       setIsLoading(false);
